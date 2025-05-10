@@ -1,4 +1,8 @@
 __pychache__/
 dataset/
+/__init__.py
+/_version.py
+/cli.py
 *.docx
 *.pdf
+*.txt
