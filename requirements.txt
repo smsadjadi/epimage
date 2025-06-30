@@ -1,0 +1,14 @@
+# basic  -------------------
+python-math
+numpy
+pyyaml
+scipy
+pandas
+matplotlib
+tqdm
+
+# ni -----------------------
+nibabel
+nilearn
+dipy
+mne
