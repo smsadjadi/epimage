@@ -1,0 +1,10 @@
+__pychache__/
+dataset/
+results/
+docs/
+*.pptx
+*.png
+*.jpg
+*.docx
+*.pdf
+*.txt
