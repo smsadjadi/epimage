@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pandas as pd
 from scipy import stats
 
 import mne
@@ -34,7 +35,6 @@ def _prepare_montage(raw, electrode_locs):
         * DataFrame with columns ('x', 'y', 'z'[, 'name']).
         Units must be **metres** in MRI space (native or MNI).
     """
-    import pandas as pd
 
     if isinstance(electrode_locs, pd.DataFrame):
         if not {"x", "y", "z"}.issubset(electrode_locs.columns):
