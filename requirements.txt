@@ -12,3 +12,7 @@ nibabel
 nilearn
 dipy
 mne
+
+# datasets -----------------
+openneuro-py
+datalad
