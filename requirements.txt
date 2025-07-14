@@ -1,4 +1,5 @@
 # basic  -------------------
+ipykernel
 python-math
 numpy
 pyyaml
