@@ -1,5 +1,5 @@
 paths:
-  dataset_dir:   'D:/Datasets/Github/sample_eeg'
+  dataset_dir:   '/home/ubuntu/Github/datasets/sample_eeg'
   subject_dir:   'sub01'
   eeg_outside:   'preprocessed/outside_preprocessed.set'
   eeg_inside:    'preprocessed/inside_fMRIb_BCG_ICA.set'
