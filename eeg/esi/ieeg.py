@@ -1,7 +1,9 @@
+import re
 import os
 import numpy as np
 import pandas as pd
 from scipy import stats
+from pathlib import Path
 
 import mne
 from mne.io import read_raw
@@ -118,22 +120,17 @@ def estimate_sources_ieeg(
         subject = "fsaverage"
     else:
         # Try to infer subject ID from the directory structure
-        subject = mne.get_subject_from_mridir(mri_path)
-        if subject is None:
-            subject = os.path.basename(os.path.dirname(mri_path))
-
-    if subjects_dir is None:
-        subjects_dir = os.getenv("SUBJECTS_DIR")
-    if subjects_dir is None:
-        raise EnvironmentError("subjects_dir is undefined (argument or $SUBJECTS_DIR)")
+        mri_path = Path(mri_path)
+        m = re.search(r"sub-[A-Za-z0-9]+", str(mri_path))
+        subject = m.group(0) if m else mri_path.parent.name
 
     # ------------------------------------------------------------------
     # 2.  Create source space, BEM & forward model
     # ------------------------------------------------------------------
     src = mne.setup_volume_source_space(
-        subject,
+        subject=subject,
+        pos=float(spacing),
         subjects_dir=subjects_dir,
-        spacing=spacing,
         add_interpolator=False,
         verbose=verbose,
     )
