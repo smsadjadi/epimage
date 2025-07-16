@@ -143,14 +143,14 @@ def estimate_sources_ieeg(
     # Identity transform → electrodes already expressed in MRI coords
     trans = Transform("mri", "head")
 
-    fwd = make_forward_solution(
+    fwd = mne.make_forward_solution(
         raw.info,
         trans=trans,
         src=src,
         bem=bem,
-        seeg=True,
         meg=False,
         eeg=False,
+        # mindist=0.0,  # keep defaults unless you need a source-to-inner-skull buffer
         verbose=verbose,
     )
 

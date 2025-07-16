@@ -1,1 +1,1 @@
-from .ieeg import *
+from .ieeg_3 import *
