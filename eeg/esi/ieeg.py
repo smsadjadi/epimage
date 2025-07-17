@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-import argparse
 import logging
-from dataclasses import dataclass
+import argparse
 from pathlib import Path
+from dataclasses import dataclass
 from typing import Tuple, Literal
 
 import mne
-import nibabel as nib
 import numpy as np
 import pandas as pd
-from mne.io import read_raw
-from mne.minimum_norm import apply_inverse, make_inverse_operator
-from mne.transforms import Transform
+import nibabel as nib
 from scipy import stats
+from mne.io import read_raw
+from mne.transforms import Transform
+from mne.minimum_norm import apply_inverse, make_inverse_operator
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig(
@@ -39,12 +39,9 @@ class PipelineConfig:
     depth: float = 0.8
     out_file: Path = Path("ieeg_sources_z.nii.gz")
     verbose: bool = False
-    #
-    # --------------- NEW options ------------------------------------
-    #
-    coord_units: Literal["mm", "m"] = "mm"   # ← NEW
-    keep_time: bool = False                  # ← NEW  (return full time course?)
-    to_mni: bool = False                     # ← NEW  (morph to fsaverage/MNI)
+    coord_units: Literal["mm", "m"] = "mm"
+    keep_time: bool = False
+    to_mni: bool = False
 
 # ---------------------------------------------------------------------
 # Functional helpers
@@ -94,7 +91,7 @@ def set_montage_and_types(raw: mne.io.BaseRaw,
                           types: list[str]) -> None:
     """Attach DigMontage and set channel types."""
     montage = mne.channels.make_dig_montage(
-        ch_pos={n: c for n, c in zip(names, coords)}, coord_frame="mri"
+        ch_pos={n: c for n, c in zip(names, coords)}, coord_frame="head"
     )
     raw.set_montage(montage, on_missing="ignore")
 
@@ -119,12 +116,26 @@ def build_forward_model(
     cfg: PipelineConfig, raw: mne.io.BaseRaw, subject: str
 ) -> tuple[mne.Forward, list[mne.SourceSpaces]]:
     """Create volume source space, conductor model, and forward operator."""
+    if cfg.mri_path is not None:
+        fs_mri_dir = Path(cfg.subjects_dir) / subject / "mri"
+        fs_mri_dir.mkdir(parents=True, exist_ok=True)
+        tgt = fs_mri_dir / "T1.mgz"
+
+        if cfg.mri_path.suffix not in (".mgz",) or not tgt.is_file():
+            img = nib.load(str(cfg.mri_path))
+            nib.save(img, str(tgt))
+            LOG.info(f"Converted {cfg.mri_path.name} → {tgt}")
+        mri_for_mne = str(tgt)
+        print(mri_for_mne)
+    else:
+        mri_for_mne = None
+
     LOG.info("Setting up %s mm volumetric source space", cfg.spacing_mm)
     src = mne.setup_volume_source_space(
         subject=subject,
         pos=cfg.spacing_mm,
         subjects_dir=cfg.subjects_dir,
-        add_interpolator=False,
+        add_interpolator=True,
         verbose=cfg.verbose,
     )
 
@@ -151,8 +162,8 @@ def build_forward_model(
         trans=trans,
         src=src,
         bem=bem,
-        meg=False, eeg=False,
-        seeg=True, ecog=True,    # ← NEW flags (supported ≥ 1.6, still valid in 1.9)
+        meg=False,
+        eeg=True,
         verbose=cfg.verbose,
     )
     return fwd, src
@@ -180,23 +191,50 @@ def create_evoked_or_epochs(raw: mne.io.BaseRaw, cfg: PipelineConfig) -> mne.Evo
 def estimate_sources(cfg: PipelineConfig) -> tuple[np.ndarray, np.ndarray]:
     """Run the full pipeline and return (z‑map, affine)."""
     raw = load_raw(cfg)
-    coords, names, types = load_electrodes(cfg, n_channels=len(raw.ch_names))
+
+    _df = pd.read_csv(cfg.electrodes_path)
+    _n_contacts = len(_df)
+    coords, names, types = load_electrodes(cfg, n_channels=_n_contacts)
+    raw.pick_channels(names, ordered=True)
+
+
+
+def estimate_sources(cfg: PipelineConfig) -> tuple[np.ndarray, np.ndarray]:
+    """Run the full pipeline and return (z-map, affine)."""
+    raw = load_raw(cfg)
+
+    _df = pd.read_csv(cfg.electrodes_path)
+    _n_contacts = len(_df)
+    coords, names, types = load_electrodes(cfg, n_channels=_n_contacts)
+    raw.pick_channels(names, ordered=True)
+
     set_montage_and_types(raw, coords, names, types)
+    raw.set_channel_types({ch: "eeg" for ch in names})
+    raw.pick_channels(names, ordered=True)
+
+    raw.set_eeg_reference('average', projection=True)
 
     subject = make_subject_id(cfg)
     fwd, src = build_forward_model(cfg, raw, subject)
 
     data_obj = create_evoked_or_epochs(raw, cfg)
+    data_obj.apply_proj()
 
     LOG.info("Creating diagonal noise covariance")
     noise_cov = mne.make_ad_hoc_cov(raw.info, verbose=cfg.verbose)
 
     lambda2 = 1.0 / cfg.snr**2
+
+    # For volumetric source spaces, loose must be 1 or "auto"
+    # Detect volume grids by ss['type'] == 'vol'
+    is_volume = any(ss.get('type', None) == 'vol' for ss in src)
+    loose_param = "auto" if is_volume else cfg.loose
+
     inverse_operator = make_inverse_operator(
         data_obj.info,
         fwd,
         noise_cov,
-        loose=cfg.loose,
+        loose=loose_param,
         depth=cfg.depth,
         verbose=cfg.verbose,
     )
@@ -215,7 +253,7 @@ def estimate_sources(cfg: PipelineConfig) -> tuple[np.ndarray, np.ndarray]:
     if cfg.to_mni and subject != "fsaverage":
         LOG.info("Morphing volumetric STC to fsaverage (MNI)")
         morph = mne.compute_source_morph(
-            stc, subject_from=subject, subject_to="fsaverage",
+            src, subject_from=subject, subject_to="fsaverage",
             subjects_dir=cfg.subjects_dir, verbose=cfg.verbose
         )
         stc = morph.apply(stc)
