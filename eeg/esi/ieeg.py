@@ -41,7 +41,6 @@ class PipelineConfig:
     verbose: bool = False
     coord_units: Literal["mm", "m"] = "mm"
     keep_time: bool = False
-    to_mni: bool = False
 
 # ---------------------------------------------------------------------
 # Functional helpers
@@ -63,7 +62,7 @@ def load_electrodes(cfg: PipelineConfig, n_channels: int) -> tuple[np.ndarray, l
     if not required.issubset(df.columns):
         raise ValueError(f"CSV must contain columns {sorted(required)}")
 
-    scale = 0.001 if cfg.coord_units == "mm" else 1.0      # ← NEW
+    scale = 0.001 if cfg.coord_units == "mm" else 1.0  
     coords = df[["x", "y", "z"]].to_numpy(float) * scale   # ← NEW scaling to metres
 
     if coords.shape[0] != n_channels:
@@ -102,9 +101,8 @@ def set_montage_and_types(raw: mne.io.BaseRaw,
 
 
 def make_subject_id(cfg: PipelineConfig) -> str:
-    """Infer subject ID (fallback: fsaverage)."""
     if cfg.mri_path is None:
-        return "fsaverage"
+        raise RuntimeError("Individual T1.mgz is required; please supply --mri <path>")
     mri_path = Path(cfg.mri_path)
     for part in mri_path.parts:
         if part.startswith("sub-"):
@@ -154,7 +152,7 @@ def build_forward_model(
         LOG.warning("BEM surfaces not found → falling back to spherical model")
         bem = mne.make_sphere_model("auto", "auto", raw.info)   # ← NEW
 
-    trans = Transform("mri", "head")  # identity; electrodes in MRI coords
+    trans = Transform("head", "mri")  # identity; electrodes in MRI coords
 
     LOG.info("Computing forward solution (seeg+ecog enabled)")
     fwd = mne.make_forward_solution(
@@ -176,7 +174,7 @@ def create_evoked_or_epochs(raw: mne.io.BaseRaw, cfg: PipelineConfig) -> mne.Evo
         LOG.info("Cropping raw data to %.3f–%.3f s", tmin, tmax)
         raw = raw.copy().crop(tmin, tmax)
 
-    if cfg.keep_time:          # ← NEW branch
+    if cfg.keep_time:      
         # Single epoch holding the continuous data
         events = np.array([[0, 0, 1]])
         epochs = mne.EpochsArray(
@@ -249,15 +247,6 @@ def estimate_sources(cfg: PipelineConfig) -> tuple[np.ndarray, np.ndarray]:
         verbose=cfg.verbose,
     )
 
-    # ---------------- Optional morph to MNI ---------------------------
-    if cfg.to_mni and subject != "fsaverage":
-        LOG.info("Morphing volumetric STC to fsaverage (MNI)")
-        morph = mne.compute_source_morph(
-            src, subject_from=subject, subject_to="fsaverage",
-            subjects_dir=cfg.subjects_dir, verbose=cfg.verbose
-        )
-        stc = morph.apply(stc)
-
     LOG.info("Converting to volume & Z‑scoring")
     img = stc.as_volume(src, mri_resolution=True)
     data = img.get_fdata().astype(np.float32)
@@ -286,7 +275,7 @@ def parse_args() -> PipelineConfig:
     )
     p.add_argument("--ieeg", required=True, type=Path, help="Path to iEEG file")
     p.add_argument("--elecs", required=True, type=Path, help="Electrode CSV (x,y,z[,name,type])")
-    p.add_argument("--mri", type=Path, help="T1.mgz (optional) — defaults to fsaverage")
+    p.add_argument("--mri", required=True, type=Path, help="Path to subject‑specific T1.mgz")
     p.add_argument("--tmin", type=float, help="Start time (s) to average")
     p.add_argument("--tmax", type=float, help="End time (s) to average")
     p.add_argument("--spacing", type=float, default=5.0, help="Source grid (mm)")
@@ -294,17 +283,9 @@ def parse_args() -> PipelineConfig:
     p.add_argument("--method", choices=["MNE", "dSPM", "sLORETA"], default="dSPM")
     p.add_argument("--subjects-dir", type=Path, dest="subjects_dir", help="$SUBJECTS_DIR override")
     p.add_argument("--out", type=Path, default=Path("ieeg_sources_z.nii.gz"), help="Output NIfTI")
-    #
-    # ---------------- NEW CLI flags -----------------------------------
-    #
-    p.add_argument("--units", choices=["mm", "m"], default="mm",
-                   help="Units of x,y,z in electrode CSV (default: mm)")      # ← NEW
-    p.add_argument("--keep-time", action="store_true",
-                   help="Keep full time course instead of time‑average")      # ← NEW
-    p.add_argument("--to-mni", action="store_true",
-                   help="Morph result to fsaverage (MNI) before saving")      # ← NEW
-    p.add_argument("--verbose", action="store_true",
-                   help="Verbose MNE output")                                 # ← NEW
+    p.add_argument("--units", choices=["mm", "m"], default="mm",help="Units of x,y,z in electrode CSV (default: mm)")  
+    p.add_argument("--keep-time", action="store_true", help="Keep full time course instead of time‑average")  
+    p.add_argument("--verbose", action="store_true", help="Verbose MNE output")                             
 
     args = p.parse_args()
     cfg = PipelineConfig(
@@ -317,11 +298,9 @@ def parse_args() -> PipelineConfig:
         snr=args.snr,
         time_window=(args.tmin, args.tmax) if args.tmin is not None else None,
         out_file=args.out,
-        #
-        coord_units=args.units,      # ← NEW
-        keep_time=args.keep_time,    # ← NEW
-        to_mni=args.to_mni,          # ← NEW
-        verbose=args.verbose,        # ← NEW
+        coord_units=args.units,  
+        keep_time=args.keep_time,
+        verbose=args.verbose,
     )
     return cfg
 
