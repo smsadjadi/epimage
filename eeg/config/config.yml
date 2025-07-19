@@ -1,9 +1,11 @@
 paths:
-  dataset_dir:   '/home/sms/Github/datasets/eeg'
+  eeg_dir:   '/home/ubuntu/Github/codex/datasets/eeg'
   subject_dir:   'sub01'
   eeg_outside:   'preprocessed/outside_preprocessed.set'
   eeg_inside:    'preprocessed/inside_fMRIb_BCG_ICA.set'
   spike_timinmg: 'spike_timing.txt'
+  #---
+  ieeg_dir:   '/home/ubuntu/Github/codex/datasets/ieeg'
 
 hyperparameters:
   sfreq: 250
