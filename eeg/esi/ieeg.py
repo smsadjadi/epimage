@@ -89,9 +89,8 @@ def set_montage_and_types(raw: mne.io.BaseRaw,
                           names: list[str],
                           types: list[str]) -> None:
     """Attach DigMontage and set channel types."""
-    montage = mne.channels.make_dig_montage(
-        ch_pos={n: c for n, c in zip(names, coords)}, coord_frame="head"
-    )
+    montage = mne.channels.make_dig_montage(ch_pos={n: c for n, c in zip(names, coords)}, coord_frame="head")
+    # montage = mne.channels.make_dig_montage(ch_pos=dict(zip(names, coords)), coord_frame="mri")
     raw.set_montage(montage, on_missing="ignore")
 
     # Ensure channel types are recognised by MNE forward routines
@@ -141,16 +140,13 @@ def build_forward_model(
     try:
         LOG.info("Attempting BEM model/solution (requires FreeSurfer surfaces)")
         bem = mne.make_bem_solution(
-            mne.make_bem_model(
-                subject=subject,
-                subjects_dir=cfg.subjects_dir,
-                conductivity=(0.3,),
-                verbose=cfg.verbose,
-            )
+            mne.make_bem_model(subject=subject,subjects_dir=cfg.subjects_dir,conductivity=(0.3,),verbose=cfg.verbose)
+            # mne.make_bem_model(subject=subject,subjects_dir=cfg.subjects_dir,conductivity=(0.3,0.006,0.3),verbose=cfg.verbose)
         )
     except FileNotFoundError:
         LOG.warning("BEM surfaces not found → falling back to spherical model")
-        bem = mne.make_sphere_model("auto", "auto", raw.info)   # ← NEW
+        bem = mne.make_sphere_model("auto", "auto", raw.info)
+        # bem = mne.make_sphere_model(r0=(0., 0., 0.), head_radius=0.095, info=None, verbose=cfg.verbose)
 
     trans = Transform("head", "mri")  # identity; electrodes in MRI coords
 
@@ -303,14 +299,3 @@ def parse_args() -> PipelineConfig:
         verbose=args.verbose,
     )
     return cfg
-
-
-def main() -> None:
-    cfg = parse_args()
-    zmap, affine = estimate_sources(cfg)
-    save_nifti(zmap, affine, cfg.out_file)
-    LOG.info("Done!")
-
-
-if __name__ == "__main__":
-    main()
