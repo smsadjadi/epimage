@@ -9,7 +9,7 @@ from nilearn import plotting
 from openneuro import download
 from utils import setup_logging
 
-from esi import (
+from actmap import (
     PipelineConfig,
     load_raw,
     load_electrodes,

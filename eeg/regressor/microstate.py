@@ -1,5 +1,5 @@
 import numpy as np
-from .activity_map import *
+from ..utils.activity_map import *
 
 
 def spatial_corr(eeg_data, epileptic_map):

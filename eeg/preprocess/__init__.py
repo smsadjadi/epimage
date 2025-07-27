@@ -1,1 +1,1 @@
-from .preprocess_eeg import *
+from .clean import *
