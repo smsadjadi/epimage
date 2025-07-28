@@ -22,7 +22,7 @@ from actmap import (
 )
 
 # Config -------------------------------------------------------------------------
-config_path = config_file = Path(__file__).resolve().parent / "config" / "config.yml"
+config_path = Path(__file__).resolve().parent / "config" / "config.yml"
 with config_path.open("r", encoding="utf-8") as f: config = yaml.safe_load(f)
 dataset_dir = Path(config['paths']['ieeg_dir'])
 dataset_id = config['paths']['dataset_id']
