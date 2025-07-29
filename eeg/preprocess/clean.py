@@ -42,19 +42,26 @@ def clean(eeg_data, sfreq, low=1.0, high=30.0, normalize=True,
     
     # 2) Normalize per channel
     if normalize:
-        eeg_filtered = eeg_filtered / np.max(np.abs(eeg_filtered), axis=1, keepdims=True)
+        # eeg_filtered = eeg_filtered / np.max(np.abs(eeg_filtered), axis=1, keepdims=True)
+        eeg_filtered = eeg_filtered - eeg_filtered.mean(axis=1, keepdims=True)
+        eeg_filtered = eeg_filtered / (eeg_filtered.std(axis=1, keepdims=True) + 1e-6)
+
 
     ica_info = None
     eeg_cleaned = eeg_filtered.copy()
     
     if apply_ica:
+        data = eeg_filtered.T
+        mask = ~np.isnan(data).any(axis=1)
+        data = data[mask] # keep only rows without any NaN
+
         # 3) ICA decomposition
         n_ch = eeg_filtered.shape[0]
         n_components = n_components or n_ch
         ica = FastICA(n_components=n_components, random_state=0, max_iter=500)
         
         # sklearn expects (n_samples, n_features)
-        sources = ica.fit_transform(eeg_filtered.T)  # shape (n_samples, n_components)
+        sources = ica.fit_transform(data)  # shape (n_samples, n_components)
         
         # 4) Determine components to reject
         if reject_components == 'auto':

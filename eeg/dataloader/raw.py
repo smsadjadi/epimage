@@ -26,7 +26,10 @@ FORMAT_READERS = {
 
 
 def load_raw(path, *reader_args, **reader_kwargs):
-    ext = os.path.splitext(path.rstrip(os.sep))[1].lower() if os.path.isdir(path) else os.path.splitext(path)[1].lower()
-    try: reader = FORMAT_READERS[ext]
-    except KeyError: raise ValueError(f"Unsupported raw format (suffix '{ext}') for '{path}'.")
-    return reader(path, *reader_args, **reader_kwargs)
+    try:
+        return mne.io.read_raw(path, *reader_args, **reader_kwargs)
+    except:
+        ext = os.path.splitext(path.rstrip(os.sep))[1].lower() if os.path.isdir(path) else os.path.splitext(path)[1].lower()
+        try: reader = FORMAT_READERS[ext]
+        except KeyError: raise ValueError(f"Unsupported raw format (suffix '{ext}') for '{path}'.")
+        return reader(path, *reader_args, **reader_kwargs)
