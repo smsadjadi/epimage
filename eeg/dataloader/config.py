@@ -18,7 +18,7 @@ class ConfigNamespace:
         return f"{self.__class__.__name__}({self.__dict__!r})"
 
 
-def load_config(config_path: Path = None) -> ConfigNamespace:
+def load_config(config_path: Path = None, dotmap=False) -> ConfigNamespace:
     # If a path is provided, use it
     if config_path:
         config_path = Path(config_path)
@@ -56,4 +56,8 @@ def load_config(config_path: Path = None) -> ConfigNamespace:
     # Load and wrap
     with config_path.open("r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    return ConfigNamespace(data)
+    
+    if dotmap:
+        return ConfigNamespace(data)
+    else:
+        return data

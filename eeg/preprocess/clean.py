@@ -3,7 +3,7 @@ from sklearn.decomposition import FastICA
 import numpy as np
 
 
-def clean(eeg_data, sfreq, low=1.0, high=30.0, normalize=True,
+def clean(eeg_data, sfreq, low=1.0, high=30.0, normalize=False,
           apply_ica=False, n_components=None, reject_components='auto', zscore_thresh=3.0):
     """
     Preprocess EEG data: bandpass filter, optional normalization, optional ICA + artifact removal.
@@ -42,9 +42,7 @@ def clean(eeg_data, sfreq, low=1.0, high=30.0, normalize=True,
     
     # 2) Normalize per channel
     if normalize:
-        # eeg_filtered = eeg_filtered / np.max(np.abs(eeg_filtered), axis=1, keepdims=True)
-        eeg_filtered = eeg_filtered - eeg_filtered.mean(axis=1, keepdims=True)
-        eeg_filtered = eeg_filtered / (eeg_filtered.std(axis=1, keepdims=True) + 1e-6)
+        eeg_filtered = eeg_filtered / np.max(np.abs(eeg_filtered), axis=1, keepdims=True)
 
 
     ica_info = None
@@ -80,4 +78,7 @@ def clean(eeg_data, sfreq, low=1.0, high=30.0, normalize=True,
             'rejected_components': reject_idx
         }
     
-    return eeg_cleaned, ica_info
+    if ica_info:
+        return eeg_cleaned, ica_info
+    else:
+        return eeg_cleaned
