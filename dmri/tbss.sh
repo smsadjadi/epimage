@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # -------------------- defaults (override via flags or env) --------------------
-DATASET="${DATASET:-/home/ubuntu/Github/codex/datasets/dti}"
+DATASET="${DATASET:-/media/local1/Datasets/epilepsy_dti_fallahi}"
 TBSSDIR="${TBSSDIR:-$DATASET/tbss}"
-SUBJECTS="${SUBJECTS:-}"
+SUBJECTS="${SUBJECTS:-subj_01}"
 TBSS_THR="${TBSS_THR:-0.2}"
 GROUPS_TSV="${GROUPS_TSV:-}"
 
