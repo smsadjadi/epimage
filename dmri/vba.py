@@ -256,5 +256,6 @@ def build_soz_zmap(
 
 
 if __name__ == "__main__":
-    subj = sys.argv[1] if len(sys.argv) > 1 else "."
-    print(build_soz_zmap(subj))
+    subject_dir = "/media/local1/Datasets/epilepsy_dti_fallahi/subj_01"
+    norm_dir="datasets/normative_iit"
+    print(build_soz_zmap(subject_dir=subject_dir, norm_dir=norm_dir))
